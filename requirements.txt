@@ -1,0 +1,6 @@
+paho.mqtt
+flask
+flask_socketio
+random
+time
+firebase_admin
