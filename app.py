@@ -17,7 +17,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
 cred = credentials.Certificate(
-    'sensorsnetwork-c38e4-firebase-adminsdk-cnn2m-f0b4040288.json')
+    'secret.json')
 
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://sensorsnetwork-c38e4.firebaseio.com/'
@@ -57,18 +57,18 @@ def on_message(client, userdata, message):
     if message.topic == "/esp8266/percentage":
         print("gas update")
         socketio.emit('percentage', {'data': message.payload.decode("utf-8")})
-    time.sleep(3)
-    socketio.emit('tag_1', {'data': "Hummidity"})
-    socketio.emit('val_1', {'data': str(random.randint(1, 100))})
-    time.sleep(3)
-    socketio.emit('tag_2', {'data': "Pressure"})
-    socketio.emit('val_2', {'data': str(random.randint(1, 100))})
-    time.sleep(3)
-    socketio.emit('tag_3', {'data': "Distance"})
-    socketio.emit('val_3', {'data': str(random.randint(1, 100))})
-    time.sleep(3)
-    socketio.emit('tag_4', {'data': "Speed"})
-    socketio.emit('val_4', {'data': str(random.randint(1, 100))})
+#    time.sleep(3)
+#    socketio.emit('tag_1', {'data': "Hummidity"})
+#    socketio.emit('val_1', {'data': str(random.randint(1, 100))})
+#    time.sleep(3)
+#    socketio.emit('tag_2', {'data': "Pressure"})
+#    socketio.emit('val_2', {'data': str(random.randint(1, 100))})
+#    time.sleep(3)
+#    socketio.emit('tag_3', {'data': "Distance"})
+#    socketio.emit('val_3', {'data': str(random.randint(1, 100))})
+#    time.sleep(3)
+#    socketio.emit('tag_4', {'data': "Speed"})
+#    socketio.emit('val_4', {'data': str(random.randint(1, 100))})
 
 
 mqttc = mqtt.Client()
