@@ -78,8 +78,8 @@ void reconnect() {
 
 void setup() {
     Serial.begin(115200);
-    Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
-    Serial.print(Firebase.getInt("users/686"));
+//     Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+//     Serial.print(Firebase.getInt("users/686"));
     pinMode(4, OUTPUT);
     pinMode(5, OUTPUT);
     if (SPIFFS.begin()) {
