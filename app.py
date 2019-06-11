@@ -1,28 +1,22 @@
-from __future__ import print_function
-
-import random
-import socket
-import time
-
-import firebase_admin
-import gspread
-import paho.mqtt.client as mqtt
-from firebase_admin import credentials
 from flask import Flask, render_template
+from flask_mqtt import Mqtt
 from flask_socketio import SocketIO
+import eventlet
 from oauth2client.service_account import ServiceAccountCredentials
 
 UNIQUE_ID = 686
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
+app.config['MQTT_BROKER_URL'] = "0.0.0.0"
+app.config['MQTT_BROKER_PORT'] = 1883
+app.config['MQTT_KEEPALIVE'] = 20
+eventlet.monkey_patch()
+mqtt = Mqtt(app)
 socketio = SocketIO(app)
-cred = credentials.Certificate(
-    'secret.json')
-
-firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://sensorsnetwork-c38e4.firebaseio.com/'
-})
-
+SUBSCIPRIONS = ["/esp8266/gas_val", "/esp8266/gas_tag", "/esp8266/val_2",
+                "/esp8266/tag_2", "/esp8266/val_3", "/esp8266/tag_3",
+                "/esp8266/val_4", "/esp8266/tag_4", "/esp8266/val_5",
+                "/esp8266/tag_5", "/esp8266/val_6", "/esp8266/tag_6"]
 
 def write_id():
     scope = ['https://spreadsheets.google.com/feeds',
@@ -37,51 +31,44 @@ def write_id():
     sheet.insert_row(row)
 
 
-def on_connect(client, userdata, flags, rc):
-    print("Connected with result code " + str(rc))
-    client.subscribe("/esp8266/gas_val")
-    client.subscribe("/esp8266/gas_tag")
-    client.subscribe("/esp8266/percentage")
+@mqtt.on_connect()
+def handle_connect(client, userdata, flags, rc):
+    print('on_connect client : {} userdata :{} flags :{} rc:{}'.format(client,
+                                                                       userdata,
+                                                                       flags,
+                                                                       rc))
+    for subscription in SUBSCIPRIONS:
+        mqtt.subscribe(subscription)
 
 
-def on_message(client, userdata, message):
+@mqtt.on_subscribe()
+def handle_subscribe(client, userdata, mid, granted_qos):
+    print(
+        'on_subscribe client : {} userdata :{} mid :{} granted_qos:{}'.format(
+            client, userdata, mid, granted_qos))
+
+
+@mqtt.on_message()
+def handle_message(client, userdata, message):
     print("Received message '" + str(
         message.payload.decode("utf-8")) + "' on topic '"
           + message.topic + "' with QoS " + str(message.qos))
-    if message.topic == "/esp8266/gas_val":
-        print("temperature update")
-        socketio.emit('gas_val', {'data': message.payload.decode("utf-8")})
-    if message.topic == "/esp8266/gas_tag":
-        print("temperature tag update")
-        socketio.emit('gas_tag', {'data': message.payload.decode("utf-8")})
-    if message.topic == "/esp8266/percentage":
-        print("gas update")
-        socketio.emit('percentage', {'data': message.payload.decode("utf-8")})
-#    time.sleep(3)
-#    socketio.emit('tag_1', {'data': "Hummidity"})
-#    socketio.emit('val_1', {'data': str(random.randint(1, 100))})
-#    time.sleep(3)
-#    socketio.emit('tag_2', {'data': "Pressure"})
-#    socketio.emit('val_2', {'data': str(random.randint(1, 100))})
-#    time.sleep(3)
-#    socketio.emit('tag_3', {'data': "Distance"})
-#    socketio.emit('val_3', {'data': str(random.randint(1, 100))})
-#    time.sleep(3)
-#    socketio.emit('tag_4', {'data': "Speed"})
-#    socketio.emit('val_4', {'data': str(random.randint(1, 100))})
+    if message.topic in SUBSCIPRIONS:
+        print(message.topic + " was updated")
+        socketio.emit(str(message.topic).replace("/esp8266/", ""), {'data': message.payload.decode("utf-8")})
+        socketio.sleep(0)
 
 
-mqttc = mqtt.Client()
-mqttc.on_connect = on_connect
-mqttc.on_message = on_message
-mqttc.connect("localhost", 1883, 40)
-mqttc.loop_start()
-write_id()
+
+@mqtt.on_disconnect()
+def handle_disconnect(client, userdata, rc):
+    print('on_disconnect client : {} userdata :{} rc :{}'.format(client,
+                                                                 userdata, rc))
 
 
-@app.route("/")
-def main():
-    return render_template('main.html', async_mode=socketio.async_mode)
+@mqtt.on_log()
+def handle_logging(client, userdata, level, buf):
+    print(level, buf)
 
 
 @socketio.on('my event')
@@ -89,5 +76,11 @@ def handle_my_custom_event(json):
     print('received json data here: ' + str(json))
 
 
-if __name__ == "__main__":
-    socketio.run(app, host='0.0.0.0', port=8181, debug=True)
+@app.route("/")
+def main():
+    return render_template('main.html', async_mode=socketio.async_mode)
+
+
+if __name__ == '__main__':
+    socketio.run(app, host="0.0.0.0", port=8080)
+
