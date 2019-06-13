@@ -1,10 +1,13 @@
+import socket
+import ssl
+from urllib.parse import urlencode
+from urllib.request import urlopen, Request
+
+import eventlet
 from flask import Flask, render_template
 from flask_mqtt import Mqtt
 from flask_socketio import SocketIO
-import eventlet
-from oauth2client.service_account import ServiceAccountCredentials
-
-UNIQUE_ID = 686
+from wireless import Wireless
 
 app = Flask(__name__)
 app.config['MQTT_BROKER_URL'] = "0.0.0.0"
@@ -18,17 +21,22 @@ SUBSCIPRIONS = ["/esp8266/gas_val", "/esp8266/gas_tag", "/esp8266/val_2",
                 "/esp8266/val_4", "/esp8266/tag_4", "/esp8266/val_5",
                 "/esp8266/tag_5", "/esp8266/val_6", "/esp8266/tag_6"]
 
+
 def write_id():
-    scope = ['https://spreadsheets.google.com/feeds',
-             'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name('secret.json',
-                                                             scope)
-    client = gspread.authorize(creds)
-    sheet = client.open('AIOT').sheet1
-    hostname = socket.gethostname()
-    IPAddr = socket.gethostbyname(hostname)
-    row = [str(UNIQUE_ID), str(IPAddr)]
-    sheet.insert_row(row)
+    wireless = Wireless()
+    print(wireless.current())
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    ip = s.getsockname()[0]
+    s.close()
+    url = 'https://olehtyzhai.pythonanywhere.com/post'  # Set destination URL here
+    post_fields = {'id': wireless.current(),
+                   'ip': ip}  # Set POST fields here
+
+    request = Request(url, urlencode(post_fields).encode())
+    gcontext = ssl.SSLContext()
+    json = urlopen(request, context=gcontext).read().decode()
+    print(json)
 
 
 @mqtt.on_connect()
@@ -55,9 +63,9 @@ def handle_message(client, userdata, message):
           + message.topic + "' with QoS " + str(message.qos))
     if message.topic in SUBSCIPRIONS:
         print(message.topic + " was updated")
-        socketio.emit(str(message.topic).replace("/esp8266/", ""), {'data': message.payload.decode("utf-8")})
+        socketio.emit(str(message.topic).replace("/esp8266/", ""),
+                      {'data': message.payload.decode("utf-8")})
         socketio.sleep(0)
-
 
 
 @mqtt.on_disconnect()
@@ -82,5 +90,5 @@ def main():
 
 
 if __name__ == '__main__':
+    write_id();
     socketio.run(app, host="0.0.0.0", port=8080)
-
