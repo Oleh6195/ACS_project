@@ -1,6 +1,6 @@
 # Distributed Sensor Network
 ## Consists of 2 servers and sensors(max 6).
-Main server is on Raspberry Pi, additional one is localhost.(If main server breaks down then another becomes main)
+Main server is on Raspberry Pi, additional one is PC.(If main server breaks down then another becomes main)
 Each sensor is connected to individual ESP8266.
 
 ### Usage:
